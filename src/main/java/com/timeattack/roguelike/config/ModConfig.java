@@ -21,6 +21,10 @@ public class ModConfig {
     public Map<String, List<String>> kitInitialItems = new HashMap<>();
     public Map<String, List<String>> kitPoolItems = new HashMap<>();
 
+    public double pointMultiplierSolo = 2.0;
+    public List<Double> pointMultipliersMulti = new ArrayList<>(List.of(1.5, 1.4, 1.3));
+    public double pointMultiplierMin = 1.0;
+
     public ModConfig() {
         // Default example kit initial items
         List<String> defaultItems = new ArrayList<>();

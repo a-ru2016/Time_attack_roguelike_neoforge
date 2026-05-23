@@ -325,7 +325,18 @@ public class TimeAttackRoguelike {
 
     public static void addPointsAndNotify(ServerPlayer player, double basePoints, CarryoverData data) {
         int playerCount = player.getServer().getPlayerCount();
-        double multiplier = playerCount >= 2 ? playerCount * 1.1 : 1.0;
+        ModConfig config = ModConfig.load();
+        double multiplier;
+        if (playerCount <= 1) {
+            multiplier = config.pointMultiplierSolo;
+        } else {
+            int index = playerCount - 2;
+            if (index >= 0 && index < config.pointMultipliersMulti.size()) {
+                multiplier = config.pointMultipliersMulti.get(index);
+            } else {
+                multiplier = config.pointMultiplierMin;
+            }
+        }
 
         boolean isJackpot = Math.random() < 0.002;
         double jackpotMultiplier = isJackpot ? 100.0 : 1.0;
@@ -457,24 +468,40 @@ public class TimeAttackRoguelike {
             }
         }
 
+        RegistryAccess registries = player.level().registryAccess();
         int extraSlot = 35;
-        for (String item : data.getExtraStarterItems(kitName)) {
-            itemsToGive.put("extra_" + extraSlot--, item);
-        }
 
+        // 獲得した永続アイテム（追加スターター、持ち越しアイテム、達人ボーナス）の収集
+        List<String> permanentItems = new ArrayList<>();
+        permanentItems.addAll(data.getExtraStarterItems(kitName));
         for (String itemSnbt : data.getCarryoverItems()) {
             if (itemSnbt != null && !itemSnbt.isEmpty()) {
-                itemsToGive.put("extra_" + extraSlot--, itemSnbt);
+                permanentItems.add(itemSnbt);
             }
         }
-
         String masterBonusSnbt = data.getMasterBonusItemSnbt();
         if (masterBonusSnbt != null && !masterBonusSnbt.isEmpty()) {
-            itemsToGive.put("extra_" + extraSlot--, masterBonusSnbt);
+            permanentItems.add(masterBonusSnbt);
             LOGGER.info("Adding master bonus item from kit '{}': {}", data.getMasterBonusSourceKit(), masterBonusSnbt);
         }
 
-        RegistryAccess registries = player.level().registryAccess();
+        // 獲得した永続アイテムの配布処理（Endless Inventory への追加を優先）
+        for (String itemIdOrSnbt : permanentItems) {
+            ItemStack stack = StarterKitParser.parseItem(itemIdOrSnbt, registries);
+            if (!stack.isEmpty()) {
+                boolean placed = false;
+                if (com.timeattack.roguelike.util.EndlessInventoryCompat.isAvailable()) {
+                    placed = com.timeattack.roguelike.util.EndlessInventoryCompat.addToEndlessInventory(player, stack);
+                    if (placed) {
+                        LOGGER.info("Added permanent item to Endless Inventory for player {}: {}", player.getName().getString(), stack);
+                    }
+                }
+                if (!placed) {
+                    itemsToGive.put("extra_" + extraSlot--, itemIdOrSnbt);
+                }
+            }
+        }
+
         for (java.util.Map.Entry<String, String> entry : itemsToGive.entrySet()) {
             String slotKey = entry.getKey();
             String itemIdOrSnbt = entry.getValue();
