@@ -1,4 +1,4 @@
-"package com.timeattack.roguelike.util;
+package com.timeattack.roguelike.util;
 
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -48,5 +48,21 @@ public class EndlessInventoryCompat {
         if (!isAvailable() || stack.isEmpty()) return false;
         try {
             Optional<?> optInv = (Optional<?>) getEndInvForPlayerMethod.invoke(null, player);
- 
-<truncated 683 bytes>
+            if (optInv != null && optInv.isPresent()) {
+                Object endlessInventory = optInv.get();
+                ItemStack remain = (ItemStack) addItemMethod.invoke(endlessInventory, stack);
+                setChangedMethod.invoke(endlessInventory);
+                
+                if (remain == null || remain.isEmpty()) {
+                    return true;
+                } else {
+                    stack.setCount(remain.getCount());
+                    return false;
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to add item to Endless Inventory", e);
+        }
+        return false;
+    }
+}
